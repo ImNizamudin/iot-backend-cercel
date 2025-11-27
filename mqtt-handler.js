@@ -19,11 +19,10 @@ class MqttHandler {
     
     this.mqttClient = mqtt.connect(this.host, { 
       port: this.port,
-      reconnectPeriod: 5000, // Auto reconnect every 5s
+      reconnectPeriod: 5000,
       connectTimeout: 10000
     });
 
-    // MQTT connection callbacks
     this.mqttClient.on('error', (err) => {
       console.log('❌ MQTT error:', err.message);
       this.isConnected = false;
@@ -33,18 +32,13 @@ class MqttHandler {
       this.isConnected = true;
       console.log('✅ MQTT connected to broker:', this.host);
       
-      // Subscribe to topics
+      // ⚠️ HANYA SUBSCRIBE UNTUK MENERIMA DATA SENSOR DARI RASPI
       this.mqttClient.subscribe('sensor/+/data', (err) => {
         if (!err) console.log('📡 Subscribed to sensor/+/data');
       });
       
-      this.mqttClient.subscribe('servo/+/status', (err) => {
-        if (!err) console.log('📡 Subscribed to servo/+/status');
-      });
-      
-      this.mqttClient.subscribe('water/+/status', (err) => {
-        if (!err) console.log('📡 Subscribed to water/+/status');
-      });
+      // TIDAK PERLU subscribe ke servo/status dan water/status
+      // Karena Raspi yang akan subscribe untuk menerima commands
     });
 
     this.mqttClient.on('disconnect', () => {
@@ -57,22 +51,18 @@ class MqttHandler {
       console.log('🔴 MQTT offline');
     });
 
-    // Handle incoming messages
+    // Handle incoming messages HANYA dari Raspi
     this.mqttClient.on('message', async (topic, message) => {
       console.log('📨 MQTT received:', topic);
       
       try {
         const data = JSON.parse(message.toString());
         
+        // ⚠️ HANYA handle sensor data dari Raspi
         if (topic.startsWith('sensor/') && topic.endsWith('/data')) {
           await this.handleSensorData(data);
         }
-        else if (topic.startsWith('servo/') && topic.endsWith('/status')) {
-          await this.handleServoStatus(data);
-        }
-        else if (topic.startsWith('water/') && topic.endsWith('/status')) {
-          await this.handleWaterStatus(data);
-        }
+        // HAPUS handler untuk servo/status dan water/status
       } catch (error) {
         console.error('❌ Error processing MQTT message:', error);
       }
@@ -97,25 +87,7 @@ class MqttHandler {
     }
   }
 
-  async handleServoStatus(data) {
-    try {
-      await saveServoCommand(data);
-      console.log('💾 Servo command saved:', data.device_id, data.target_angle);
-    } catch (error) {
-      console.error('❌ Error saving servo command:', error);
-    }
-  }
-
-  async handleWaterStatus(data) {
-    try {
-      console.log('💧 Water status:', data);
-      // Handle water status updates jika needed
-    } catch (error) {
-      console.error('❌ Error handling water status:', error);
-    }
-  }
-
-  // Publish servo control command
+  // ⚠️ TAMBAHKAN METHOD UNTUK PUBLISH COMMAND KE RASPI
   publishServoCommand(deviceId, angle, commandBy = 'web_user') {
     if (!this.isConnected) {
       console.error('❌ MQTT not connected, cannot publish');
@@ -125,16 +97,15 @@ class MqttHandler {
     const topic = `control/${deviceId}/servo`;
     const command = {
       device_id: deviceId,
-      target_angle: parseInt(angle),
+      angle: parseInt(angle),
       command_by: commandBy,
       timestamp: new Date().toISOString()
     };
     
     this.mqttClient.publish(topic, JSON.stringify(command));
-    console.log(`🎯 Servo command published: ${deviceId} -> ${angle}°`);
+    console.log(`🎯 Servo command published to Raspi: ${deviceId} -> ${angle}°`);
   }
 
-  // Publish water control command
   publishWaterCommand(deviceId, state, commandBy = 'web_user') {
     if (!this.isConnected) {
       console.error('❌ MQTT not connected, cannot publish');
@@ -144,13 +115,13 @@ class MqttHandler {
     const topic = `control/${deviceId}/water`;
     const command = {
       device_id: deviceId,
-      water_state: Boolean(state),
+      state: Boolean(state),
       command_by: commandBy,
       timestamp: new Date().toISOString()
     };
     
     this.mqttClient.publish(topic, JSON.stringify(command));
-    console.log(`💧 Water command published: ${deviceId} -> ${state}`);
+    console.log(`💧 Water command published to Raspi: ${deviceId} -> ${state}`);
   }
 
   // Check connection status

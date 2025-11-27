@@ -138,7 +138,7 @@ app.post('/api/control/servo', async (req, res) => {
       status: 'sent'
     });
     
-    // Publish to MQTT
+    // ⚠️ PUBLISH COMMAND KE RASPI (bukan save status)
     if (mqttHandler) {
       mqttHandler.publishServoCommand(device_id, validatedAngle, command_by || 'web_api');
     }
@@ -154,7 +154,7 @@ app.post('/api/control/servo', async (req, res) => {
   }
 });
 
-// Control water
+// Control water - UPDATE  
 app.post('/api/control/water', (req, res) => {
   try {
     const { device_id, state, command_by } = req.body;
@@ -163,7 +163,7 @@ app.post('/api/control/water', (req, res) => {
       return res.status(400).json({ error: 'Device ID and state are required' });
     }
     
-    // Publish to MQTT
+    // ⚠️ PUBLISH COMMAND KE RASPI
     if (mqttHandler) {
       mqttHandler.publishWaterCommand(device_id, state, command_by || 'web_api');
     }
